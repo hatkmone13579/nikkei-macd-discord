@@ -1,14 +1,11 @@
-# .github/workflows/macd.yml — v2
+# .github/workflows/macd.yml — v2 (keepaliveは自前方式・外部Action不使用)
 # 平日 19:00 JST(=10:00 UTC) に自動実行（PC不要・GitHub上で完結）
-# 事前準備：Settings > Secrets and variables > Actions に登録
-#   - DISCORD_WEBHOOK_URL : Discordチャンネルのウェブフック URL（必須）
-#   - ADMIN_WEBHOOK_URL   : (任意) エラー通知先。未設定ならメインを流用
 name: nikkei-macd-discord
 
 on:
   schedule:
     - cron: "0 10 * * 1-5"    # 月〜金 10:00 UTC = 19:00 JST
-  workflow_dispatch:           # 手動実行
+  workflow_dispatch:
     inputs:
       test:
         description: "セットアップテスト（Webhook疎通のみ・株価取得なし）"
@@ -19,7 +16,6 @@ on:
         type: boolean
         default: false
 
-# keepalive が自動コミットで cron を延命するため write 権限を付与
 permissions:
   contents: write
 
@@ -33,7 +29,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # チャート画像の日本語表示用フォント
       - name: Install Japanese fonts
         run: sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-cjk
 
@@ -43,7 +38,6 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      # 重複通知防止の状態を実行間で保持（消えても致命的ではない）
       - uses: actions/cache@v4
         with:
           path: macd_state.json
@@ -57,11 +51,21 @@ jobs:
           TEST_MODE: ${{ inputs.test }}
           FORCE_RUN: ${{ inputs.force }}
           # ▼ お好みで上書き可能（コード編集不要）。例:
-          # VOLUME_FILTER_ENABLED: "true"   # 出来高フィルター ON/OFF
-          # VOLUME_CONFIRM_RATIO: "1.2"     # 出来高しきい値(倍)
-          # MIN_GRADE: "C"                  # 通知する最低グレード S/A/B/C
-          # CHART_TOP_N: "3"                # チャート添付する上位件数(0で無効)
+          # VOLUME_FILTER_ENABLED: "true"
+          # VOLUME_CONFIRM_RATIO: "1.2"
+          # MIN_GRADE: "C"
+          # CHART_TOP_N: "3"
 
-      # 自動延命：60日無活動による cron 停止を自動回避（手動コミット不要）
-      - name: Keepalive
-        uses: gautamkrishnar/keepalive-workflow@v2
+      # 自動延命：外部Action不使用。週1回(月曜)に空コミットを打って
+      # 60日無活動による cron 自動停止を回避する。
+      - name: Keepalive (毎週月曜に空コミットで延命)
+        if: github.event_name == 'schedule'
+        run: |
+          if [ "$(date -u +%u)" = "1" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "keepalive: prevent workflow auto-disable"
+            git push
+          else
+            echo "keepalive: 月曜のみ実行。本日はスキップ。"
+          fi
