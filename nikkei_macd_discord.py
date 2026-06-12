@@ -144,8 +144,23 @@ NIKKEI225_SAMPLE = {
 def load_constituents() -> dict:
     path = os.environ.get("CONSTITUENTS_CSV", "nikkei225.csv")
     if os.path.exists(path):
-        df = pd.read_csv(path, dtype={"code": str})
-        m = dict(zip(df["code"].astype(str).str.zfill(4), df["name"]))
+        # 文字コードはExcel保存等でまちまちなので順に試す（UTF-8/BOM/Shift-JIS等）
+        df = None
+        for enc in ("utf-8-sig", "utf-8", "cp932", "shift_jis"):
+            try:
+                df = pd.read_csv(path, dtype={"code": str}, encoding=enc)
+                log.info("CSV読込成功 (encoding=%s)", enc)
+                break
+            except (UnicodeDecodeError, LookupError):
+                continue
+        if df is None:
+            df = pd.read_csv(path, dtype={"code": str},
+                             encoding="utf-8", encoding_errors="replace")
+            log.warning("文字コード不明のため強制読込しました")
+        # 列名のゆらぎ・前後空白を吸収
+        df.columns = [str(c).strip().lower() for c in df.columns]
+        m = dict(zip(df["code"].astype(str).str.strip().str.zfill(4),
+                     df["name"].astype(str).str.strip()))
         log.info("構成銘柄を %s から読込: %d 件", path, len(m))
         return m
     log.warning("構成銘柄CSVが無いためサンプル %d 件で実行", len(NIKKEI225_SAMPLE))
