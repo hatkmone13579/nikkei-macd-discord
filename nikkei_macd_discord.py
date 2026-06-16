@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-日経225 MACD(12,26,9) クロス検知 → Discord 通知  ★v2 (Pro Edition)
+日経225 MACD(8,17,9) クロス検知 → Discord 通知  ★v2 (Pro Edition)
 ================================================================================
 ■ 検知エンジン
-  - 終値ベースの MACD(12,26,9) 当日クロスを検出（休場日スキップ／重複通知防止）
+  - 終値ベースの MACD(8,17,9) 当日クロスを検出（休場日スキップ／重複通知防止）
   - シグナル品質スコア(0-100点) と S/A/B/C グレードを自動判定
       +30 週足MACDの方向と一致（マルチタイムフレーム順行）
       +20 0ラインに対する位置が有利（GC:0上 / DC:0下）
@@ -77,7 +77,7 @@ def _env_int(name, default):
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
 ADMIN_WEBHOOK_URL = os.environ.get("ADMIN_WEBHOOK_URL", DISCORD_WEBHOOK_URL)
 
-MACD_FAST, MACD_SLOW, MACD_SIGNAL = 12, 26, 9
+MACD_FAST, MACD_SLOW, MACD_SIGNAL = 8, 17, 9
 HISTORY_PERIOD = "2y"            # 週足MACD・200日線の計算に必要な長さ
 
 # ---- 出来高フィルター --------------------------------------------------------
@@ -757,7 +757,7 @@ def main():
                                    len(golden), len(dead))]
     embeds += build_signal_embeds(golden, dead, date_str)
     send_in_batches(DISCORD_WEBHOOK_URL,
-                    f"📊 **日経225 MACD(12,26,9) デイリーレポート** — {date_str}",
+                    f"📊 **日経225 MACD(8,17,9) デイリーレポート** — {date_str}",
                     embeds)
 
     send_top_charts(golden + dead, prices, date_str)
